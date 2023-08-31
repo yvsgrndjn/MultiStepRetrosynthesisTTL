@@ -3,3 +3,4 @@ __name__ = 'rxnmarkcenter'
 __version__ = '0.8.0'
 
 from .mark_reaction_center import RXNMarkCenter
+from rxnmapper import BatchedMapper
