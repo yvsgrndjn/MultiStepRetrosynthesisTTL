@@ -10,11 +10,14 @@ import random
 from rdkit import RDLogger  
 RDLogger.DisableLog('rdApp.*')  
 
+from rxnmapper import BatchedMapper
+
 class RXNMarkCenter:
     
     def __init__(self):
         self.mol_cache = {}
-    
+        self.rxn_mapper_batch = BatchedMapper(batch_size=10, canonicalize=False)
+
     def smi_tokenizer(self, smi):
         """
         Tokenize a SMILES molecule or reaction
@@ -78,7 +81,7 @@ class RXNMarkCenter:
         
         return theList.count(1)
     
-    def mark_reaction_center_alt(self, rxn_SMILES_in, method=1, lst_method12=[0,0,0,0,0,0,0,0]):
+    def mark_reaction_center_alt(self, rxn_SMILES_in, method=1, tag_reactants=False, lst_method12=[0,0,0,0,0,0,0,0]):
         '''
         Takes as an input the "atom-mapped" traditionnal strategy marked reaction SMILES. 
         Outputs the alternative version of marking the atoms involved in the reaction.
@@ -95,71 +98,141 @@ class RXNMarkCenter:
             return ''
         
         # Get Marked Atoms Count:
-        count_mapped_atoms = self.ListMapNum_count(rxn_mapped.GetProducts()[0])
+        if tag_reactants:
+            count_mapped_atoms = sum(self.ListMapNum_count(rxn_mapped.GetReactants()[el]) for el in range(len(rxn_mapped.GetReactants())))
         
-        # Swap Num Radical Electrons:
-        for product in rxn_mapped.GetProducts():
-            for atom in product.GetAtoms():
-                if atom.GetAtomMapNum() == 1:
-                    if method == 1:     atom.SetAtomicNum(atom.GetAtomicNum()-1)
-                    elif method == 2:   atom.SetNumRadicalElectrons(1)
-                    elif method == 3:   pass
-                    elif method == 4:   atom.SetAtomicNum(atom.GetAtomicNum()+1)
-                    elif method == 5:
-                        atom.SetAtomicNum(atom.GetAtomicNum()-1)
-                        atom.SetNumRadicalElectrons(1)
-                    elif method == 6:
-                        atom.SetAtomicNum(atom.GetAtomicNum()+1)
-                        atom.SetNumRadicalElectrons(1)
-                    elif method == 7:
-                        atom.InvertChirality()
-                        atom.SetNumRadicalElectrons(1)
-                    elif method == 8:
-                        atom.InvertChirality()
-                        atom.SetAtomicNum(atom.GetAtomicNum()+1)
-                    elif method == 9:
-                        atom.InvertChirality()
-                        atom.SetAtomicNum(atom.GetAtomicNum()-1)
-                    elif method == 10:
-                        atom.InvertChirality()
-                        atom.SetAtomicNum(atom.GetAtomicNum()-1)
-                    elif method == 11:  atom.SetFormalCharge(0)
-                    elif method == 12:
-                        if lst_method12[0]==1:   atom.SetIsAromatic(1)
-                        if lst_method12[1]==1:   atom.SetAtomicNum(atom.GetAtomicNum()-1)
-                        if lst_method12[2]==1:   atom.SetAtomicNum(atom.GetAtomicNum()+1)
-                        if lst_method12[3]==1:   atom.SetNumRadicalElectrons(1)
-                        if lst_method12[4]==1:   atom.InvertChirality()
-                        if lst_method12[5]==1:   atom.SetFormalCharge(0)
-                        if lst_method12[6]==1:   atom.SetFormalCharge(1)
-                        if lst_method12[7]==1:   atom.SetFormalCharge(-1)
-                        
-                    atom.SetAtomMapNum(0)
+            # Swap Num Radical Electrons:
+            for reactant in rxn_mapped.GetReactants():
+                for atom in reactant.GetAtoms():
+                    if atom.GetAtomMapNum() == 1:
+                        if method == 1:     atom.SetAtomicNum(atom.GetAtomicNum()-1)
+                        elif method == 2:   atom.SetNumRadicalElectrons(1)
+                        elif method == 3:   pass
+                        elif method == 4:   atom.SetAtomicNum(atom.GetAtomicNum()+1)
+                        elif method == 5:
+                            atom.SetAtomicNum(atom.GetAtomicNum()-1)
+                            atom.SetNumRadicalElectrons(1)
+                        elif method == 6:
+                            atom.SetAtomicNum(atom.GetAtomicNum()+1)
+                            atom.SetNumRadicalElectrons(1)
+                        elif method == 7:
+                            atom.InvertChirality()
+                            atom.SetNumRadicalElectrons(1)
+                        elif method == 8:
+                            atom.InvertChirality()
+                            atom.SetAtomicNum(atom.GetAtomicNum()+1)
+                        elif method == 9:
+                            atom.InvertChirality()
+                            atom.SetAtomicNum(atom.GetAtomicNum()-1)
+                        elif method == 10:
+                            atom.InvertChirality()
+                            atom.SetAtomicNum(atom.GetAtomicNum()-1)
+                        elif method == 11:  atom.SetFormalCharge(0)
+                        elif method == 12:
+                            if lst_method12[0]==1:   atom.SetIsAromatic(1)
+                            if lst_method12[1]==1:   atom.SetAtomicNum(atom.GetAtomicNum()-1)
+                            if lst_method12[2]==1:   atom.SetAtomicNum(atom.GetAtomicNum()+1)
+                            if lst_method12[3]==1:   atom.SetNumRadicalElectrons(1)
+                            if lst_method12[4]==1:   atom.InvertChirality()
+                            if lst_method12[5]==1:   atom.SetFormalCharge(0)
+                            if lst_method12[6]==1:   atom.SetFormalCharge(1)
+                            if lst_method12[7]==1:   atom.SetFormalCharge(-1)
+
+                        atom.SetAtomMapNum(0)       
+        
+        else:
+            count_mapped_atoms = self.ListMapNum_count(rxn_mapped.GetProducts()[0])
+        
+            # Swap Num Radical Electrons:
+            for product in rxn_mapped.GetProducts():
+                for atom in product.GetAtoms():
+                    if atom.GetAtomMapNum() == 1:
+                        if method == 1:     atom.SetAtomicNum(atom.GetAtomicNum()-1)
+                        elif method == 2:   atom.SetNumRadicalElectrons(1)
+                        elif method == 3:   pass
+                        elif method == 4:   atom.SetAtomicNum(atom.GetAtomicNum()+1)
+                        elif method == 5:
+                            atom.SetAtomicNum(atom.GetAtomicNum()-1)
+                            atom.SetNumRadicalElectrons(1)
+                        elif method == 6:
+                            atom.SetAtomicNum(atom.GetAtomicNum()+1)
+                            atom.SetNumRadicalElectrons(1)
+                        elif method == 7:
+                            atom.InvertChirality()
+                            atom.SetNumRadicalElectrons(1)
+                        elif method == 8:
+                            atom.InvertChirality()
+                            atom.SetAtomicNum(atom.GetAtomicNum()+1)
+                        elif method == 9:
+                            atom.InvertChirality()
+                            atom.SetAtomicNum(atom.GetAtomicNum()-1)
+                        elif method == 10:
+                            atom.InvertChirality()
+                            atom.SetAtomicNum(atom.GetAtomicNum()-1)
+                        elif method == 11:  atom.SetFormalCharge(0)
+                        elif method == 12:
+                            if lst_method12[0]==1:   atom.SetIsAromatic(1)
+                            if lst_method12[1]==1:   atom.SetAtomicNum(atom.GetAtomicNum()-1)
+                            if lst_method12[2]==1:   atom.SetAtomicNum(atom.GetAtomicNum()+1)
+                            if lst_method12[3]==1:   atom.SetNumRadicalElectrons(1)
+                            if lst_method12[4]==1:   atom.InvertChirality()
+                            if lst_method12[5]==1:   atom.SetFormalCharge(0)
+                            if lst_method12[6]==1:   atom.SetFormalCharge(1)
+                            if lst_method12[7]==1:   atom.SetFormalCharge(-1)
+                        atom.SetAtomMapNum(0)
         
         try:
             # Get Smiles
             rdChemReactions.SanitizeRxn(rxn_mapped)
-            smi_rxn_mapped = rdChemReactions.ReactionToSmiles(rxn_mapped, canonical=True)
-            
-            # Unmapped reference:
-            rdChemReactions.RemoveMappingNumbersFromReactions(rxn_unmapped)
-            rdChemReactions.SanitizeRxn(rxn_unmapped)
-            smi_rxn_unmapped = rdChemReactions.ReactionToSmiles(rxn_unmapped, canonical=True)
+
+            if tag_reactants:
+
+                if method == 3:
+                    rxn_mapped = rdChemReactions.ReactionFromSmarts(rxn_SMILES_in, useSmiles=True)
+
+                #sort by string length
+                reac_mapped_str,prod_mapped_str = rdChemReactions.ReactionToSmiles(rxn_mapped).split('>>')
+                rxn_mapped_str = reac_mapped_str.split('.')
+                rxn_mapped_str.sort()
+                rxn_mapped_str.sort(key=len, reverse=False)
+                smi_rxn_mapped = '.'.join(rxn_mapped_str) + '>>' + prod_mapped_str
+
+
+                # Unmapped reference:
+                rdChemReactions.RemoveMappingNumbersFromReactions(rxn_unmapped)
+                rdChemReactions.SanitizeRxn(rxn_unmapped)
+
+                #sort by string length
+                reac_unmapped_str,prod_unmapped_str = rdChemReactions.ReactionToSmiles(rxn_unmapped).split('>>')
+                rxn_unmapped_str = reac_unmapped_str.split('.')
+                rxn_unmapped_str.sort()
+                rxn_unmapped_str.sort(key=len, reverse=False)
+                smi_rxn_unmapped = '.'.join(rxn_unmapped_str) + '>>' + prod_unmapped_str
+            else:
+                # Get Smiles
+                rdChemReactions.SanitizeRxn(rxn_mapped)
+                smi_rxn_mapped = rdChemReactions.ReactionToSmiles(rxn_mapped, canonical=True)
+
+                # Unmapped reference:
+                rdChemReactions.RemoveMappingNumbersFromReactions(rxn_unmapped)
+                rdChemReactions.SanitizeRxn(rxn_unmapped)
+                smi_rxn_unmapped = rdChemReactions.ReactionToSmiles(rxn_unmapped, canonical=True)
         except:
             return ''
         
-        # Special method 3:
-        if method == 3:
+        if not tag_reactants and method == 3:
+            # Special method 3:
             smi_rxn_mapped = rxn_SMILES_in
-
+        
         # To list
         try:
             smi_rxn_mapped_list = self.smi_tokenizer(smi_rxn_mapped).split(' ')
             smi_rxn_unmapped_list = self.smi_tokenizer(smi_rxn_unmapped).split(' ')
-        except: return ''
+
+        except:return ''
         
         #Check both lenghts
-        if len(smi_rxn_mapped_list) != len(smi_rxn_unmapped_list): return ''
+        if len(smi_rxn_mapped_list) != len(smi_rxn_unmapped_list):return ''
         
         # New Marking:
         MarkedSMILES_alt = ''
@@ -183,52 +256,52 @@ class RXNMarkCenter:
         
         return MarkedSMILES_alt
     
-    def mark_reaction_center_alt_all(self, rxn_SMILES_in):
+    def mark_reaction_center_alt_all(self, rxn_SMILES_in, tag_reactants=False):
         
         # Try method 1 (least computationnaly hungry)
-        MarkedSMILES_alt = self.mark_reaction_center_alt(rxn_SMILES_in, method=3)
+        MarkedSMILES_alt = self.mark_reaction_center_alt(rxn_SMILES_in, method=3, tag_reactants = tag_reactants) 
         # For empty returns, try method 1
-        if MarkedSMILES_alt == '':  MarkedSMILES_alt = self.mark_reaction_center_alt(rxn_SMILES_in, method=1)
+        if MarkedSMILES_alt == '':  MarkedSMILES_alt = self.mark_reaction_center_alt(rxn_SMILES_in, method=1, tag_reactants= tag_reactants)
         # For empty returns, try method 2
-        if MarkedSMILES_alt == '':  MarkedSMILES_alt = self.mark_reaction_center_alt(rxn_SMILES_in, method=2)
+        if MarkedSMILES_alt == '':  MarkedSMILES_alt = self.mark_reaction_center_alt(rxn_SMILES_in, method=2, tag_reactants= tag_reactants)
         # For empty returns, try method 4
-        if MarkedSMILES_alt == '':  MarkedSMILES_alt = self.mark_reaction_center_alt(rxn_SMILES_in, method=4)
+        if MarkedSMILES_alt == '':  MarkedSMILES_alt = self.mark_reaction_center_alt(rxn_SMILES_in, method=4, tag_reactants= tag_reactants)
         # For empty returns, try method 5
-        if MarkedSMILES_alt == '':  MarkedSMILES_alt = self.mark_reaction_center_alt(rxn_SMILES_in, method=5)
+        if MarkedSMILES_alt == '':  MarkedSMILES_alt = self.mark_reaction_center_alt(rxn_SMILES_in, method=5, tag_reactants= tag_reactants)
         # For empty returns, try method 6
-        if MarkedSMILES_alt == '':  MarkedSMILES_alt = self.mark_reaction_center_alt(rxn_SMILES_in, method=6)
+        if MarkedSMILES_alt == '':  MarkedSMILES_alt = self.mark_reaction_center_alt(rxn_SMILES_in, method=6, tag_reactants= tag_reactants)
         # For empty returns, try method 7
-        if MarkedSMILES_alt == '':  MarkedSMILES_alt = self.mark_reaction_center_alt(rxn_SMILES_in, method=7)
+        if MarkedSMILES_alt == '':  MarkedSMILES_alt = self.mark_reaction_center_alt(rxn_SMILES_in, method=7, tag_reactants= tag_reactants)
         # For empty returns, try method 8
-        if MarkedSMILES_alt == '':  MarkedSMILES_alt = self.mark_reaction_center_alt(rxn_SMILES_in, method=8)
+        if MarkedSMILES_alt == '':  MarkedSMILES_alt = self.mark_reaction_center_alt(rxn_SMILES_in, method=8, tag_reactants= tag_reactants)
         # For empty returns, try method 9
-        if MarkedSMILES_alt == '':  MarkedSMILES_alt = self.mark_reaction_center_alt(rxn_SMILES_in, method=9)
+        if MarkedSMILES_alt == '':  MarkedSMILES_alt = self.mark_reaction_center_alt(rxn_SMILES_in, method=9, tag_reactants= tag_reactants)
         # For empty returns, try method 10
-        if MarkedSMILES_alt == '':  MarkedSMILES_alt = self.mark_reaction_center_alt(rxn_SMILES_in, method=10)
+        if MarkedSMILES_alt == '':  MarkedSMILES_alt = self.mark_reaction_center_alt(rxn_SMILES_in, method=10, tag_reactants= tag_reactants)
         # For empty returns, try method 11
-        if MarkedSMILES_alt == '':  MarkedSMILES_alt = self.mark_reaction_center_alt(rxn_SMILES_in, method=11)
+        if MarkedSMILES_alt == '':  MarkedSMILES_alt = self.mark_reaction_center_alt(rxn_SMILES_in, method=11, tag_reactants= tag_reactants)
         # For empty returns, try method 12
         if MarkedSMILES_alt == '':
             count = 0
             n = 8
             lst = list(itertools.product([0, 1], repeat=n))
             while MarkedSMILES_alt == '' and count < 2**n:
-                MarkedSMILES_alt = self.mark_reaction_center_alt(rxn_SMILES_in, method=12, lst_method12=lst[count])
-                count += 1      
+                MarkedSMILES_alt = self.mark_reaction_center_alt(rxn_SMILES_in, method=12, tag_reactants= tag_reactants, lst_method12 = lst[count])
+                count += 1        
         return MarkedSMILES_alt
     
-    def convert_smarts_to_smiles_alt_tagging(self, product_smarts_mapped_tag):
+    def convert_smarts_to_smiles_alt_tagging(self, product_smarts_mapped_tag, tag_reactants = False):
         '''
             Converts a product tagged by the atom-mapping SMARTS into the alternative tagging method:
         '''
         
-        fake_rxn = self.mark_reaction_center_alt_all(rxn_SMILES_in='CCC>>' + product_smarts_mapped_tag)
+        fake_rxn = self.mark_reaction_center_alt_all(rxn_SMILES_in='CCC>>' + product_smarts_mapped_tag, tag_reactants = tag_reactants)
         
         if '>>' in fake_rxn:
             return fake_rxn.split('>>')[1]
         else: return ''
 
-    def TagMappedReactionCenter(self, MappedReaction, alternative_marking=False):
+    def TagMappedReactionCenter(self, MappedReaction, alternative_marking=False, tag_reactants = False):
         
         try:    
             rxn = rdChemReactions.ReactionFromSmarts(MappedReaction, useSmiles=True)
@@ -237,44 +310,70 @@ class RXNMarkCenter:
         
         reactants = rxn.GetReactants()
         products = rxn.GetProducts()
+        
         if len(products) > 1 : return '' 
         
         for molecule in reactants:
             try:    Chem.SanitizeMol(molecule)
             except: i=0
-
         for molecule in products:
             try:    Chem.SanitizeMol(molecule)
             except: i=0
             
         transformed_atoms = []
         
-        for index in self.ListMapNum(products[0]):
-            precursors_atom = self.GetAtomFromMapNum(reactants, index)
-            products_atom = self.GetAtomFromMapNum(products, index)
-        
-            if self.GetAtomEnvironment(precursors_atom) != self.GetAtomEnvironment(products_atom):
-                transformed_atoms.append(products_atom.GetIdx())
-        
-        # Clear atom mapping in Precursors:
-        for molecule in reactants:
-            for atom in molecule.GetAtoms():
-                atom.SetAtomMapNum(0)
-                
-        # Clear atom mapping in Product (if unchanged):
-        for molecule in products:
-            for atom in molecule.GetAtoms():
-                if not atom.GetIdx() in transformed_atoms:
+        if tag_reactants:
+            for index in self.ListMapNum(products[0]):
+                precursors_atom = self.GetAtomFromMapNum(reactants, index)
+                products_atom = self.GetAtomFromMapNum(products, index)
+    
+                if self.GetAtomEnvironment(precursors_atom) != self.GetAtomEnvironment(products_atom):
+                    transformed_atoms.append(products_atom.GetIdx()+1)
+    
+            # Clear atom mapping in Products: #modified <----------------
+            for molecule in products:
+                for atom in molecule.GetAtoms():
                     atom.SetAtomMapNum(0)
-                else:
-                    atom.SetAtomMapNum(1)
-        
+    
+            # Clear atom mapping in Reactants (if unchanged): #modified <----------------
+            for molecule in reactants:
+                for atom in molecule.GetAtoms():
+                    if not atom.GetAtomMapNum() in transformed_atoms:
+                        atom.SetAtomMapNum(0)
+                    else:
+                        atom.SetAtomMapNum(1)
+        else:
+            for index in self.ListMapNum(products[0]):
+                precursors_atom = self.GetAtomFromMapNum(reactants, index)
+                products_atom = self.GetAtomFromMapNum(products, index)
+            
+                if self.GetAtomEnvironment(precursors_atom) != self.GetAtomEnvironment(products_atom):
+                    transformed_atoms.append(products_atom.GetIdx())
+            
+            # Clear atom mapping in Precursors:
+            for molecule in reactants:
+                for atom in molecule.GetAtoms():
+                    atom.SetAtomMapNum(0)
+                    
+            # Clear atom mapping in Product (if unchanged):
+            for molecule in products:
+                for atom in molecule.GetAtoms():
+                    if not atom.GetIdx() in transformed_atoms:
+                        atom.SetAtomMapNum(0)
+                    else:
+                        atom.SetAtomMapNum(1)
+    
         # Convert Mol to Smarts:
-        rdChemReactions.SanitizeRxn(rxn)
+        try:
+            rdChemReactions.SanitizeRxn(rxn)
+        except:
+            print(MappedReaction)
+            return ''
+
         if not alternative_marking:
             return rdChemReactions.ReactionToSmiles(rxn, canonical=True)
         else:
-            return self.mark_reaction_center_alt_all(rdChemReactions.ReactionToSmiles(rxn, canonical=True))
+            return self.mark_reaction_center_alt_all(rdChemReactions.ReactionToSmiles(rxn, canonical=True), tag_reactants)
         
     def Mark_Random_Atoms(self, mol_SMILES, mark_count=2, neighbors=True, tokenized=False):
         '''
@@ -489,4 +588,18 @@ class RXNMarkCenter:
             for element in New_SMILES: New_SMILESs.append(self.mark_reaction_center_alt_all(">>" + element).replace('>>', ''))
             
         return New_SMILESs
-        
+
+    def Convert_Alt_Tag_To_Orig(self,rxnstr): #  (input: unique reaction str )
+        ''' 
+        rxnstr: a unique reaction string tagged with "!"
+        Convert a reaction tagged with "!" into the original reaction tag.
+        '''
+        #remove !'s 
+        rxnstr = rxnstr.replace('!', '')
+
+        #rxnstomap = [str(df_prediction_Forw.at[el, 'Retro']) + '>>' + str(df_prediction_Forw.at[el, 'Target']) for el in range(0, len(df_prediction_Forw))]
+        MappedReaction = list(self.rxn_mapper_batch.map_reactions([rxnstr]))
+        TaggedReaction_reac = self.TagMappedReactionCenter(MappedReaction[0], alternative_marking=False, tag_reactants = True).split('>>')[0]
+        TaggedReaction_prod = self.TagMappedReactionCenter(MappedReaction[0], alternative_marking=False, tag_reactants = False).split('>>')[1]
+
+        return TaggedReaction_reac + '>>' + TaggedReaction_prod       
