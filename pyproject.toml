@@ -22,7 +22,7 @@ dependencies = [
     "opennmt-py@git+https://github.com/reymond-group/OpenNMT-py#71fb9f70e887589941be291b762a8bdad8aa9437", 
     "scscore@git+https://github.com/DavKre/scscore#egg=8cc8b9fbc8150d608d9632b28c1c7c3148433115", 
     "rxnmapper@git+https://github.com/rxn4chemistry/rxnmapper#90a7012c9c0127f4a347baf815e270d8807b5a39", 
-    "torch>=1.9.0",
+    "torch-utils",
     ]
 
 [tool.hatch.version]
