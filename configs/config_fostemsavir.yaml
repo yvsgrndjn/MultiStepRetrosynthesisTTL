@@ -25,7 +25,7 @@ list_substructures_path: 'stocks/list_conditionnal_substructures_tags_R2.csv'
 # USPTO Retrosynthesis parameters:
 Retro_USPTO: True               # Enables USPTO T1 model
 Fwd_USPTO_Reag_Pred: True       # Enables USPTO T3 model
-Fwd_USPTO_Tag_React: False	# Enables USPTO T3 model with reactants tagging
+Fwd_USPTO_Tag_React: False      # Enables USPTO T3 model with reactants tagging
 
 # Beam sizes:
 Retro_beam_size: 10             # Number of set of precursors to predict per molecule
