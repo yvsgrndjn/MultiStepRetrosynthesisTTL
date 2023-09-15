@@ -602,7 +602,7 @@ class RXNMarkCenter:
         	MappedReaction = list(self.rxn_mapper_batch.map_reactions([rxnstr]))
         	TaggedReaction_reac = self.TagMappedReactionCenter(MappedReaction[0], alternative_marking=False, tag_reactants = True).split('>>')[0]
         	TaggedReaction_prod = self.TagMappedReactionCenter(MappedReaction[0], alternative_marking=False, tag_reactants = False).split('>>')[1]
-		out = TaggedReaction_reac + '>>' + TaggedReaction_prod
+        	out = TaggedReaction_reac + '>>' + TaggedReaction_prod
 	except:
 		out = ''
         return out       
