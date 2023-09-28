@@ -27,7 +27,7 @@ class RXNMarkCenter:
         tokens = [token for token in regex.findall(smi)]
         assert smi == ''.join(tokens)
         return ' '.join(tokens)
-    
+     
     def GetAtomEnvironment(self, query_atom):
     
         atom_env = {}
@@ -606,3 +606,19 @@ class RXNMarkCenter:
         except:
             out = ''
         return out       
+
+    def remove_mapping(self, rxn: rdChemReactions.ChemicalReaction):
+        '''
+        rxn: a conventionally mapped reaction object
+        Remove all atom mapping from a reaction object
+        '''
+        rdChemReactions.SanitizeRxn(rxn)
+        reactants = rxn.GetReactants()
+        products = rxn.GetProducts()
+        for molecule in reactants:
+            for atom in molecule.GetAtoms():
+                atom.SetAtomMapNum(0)
+        for molecule in products:
+            for atom in molecule.GetAtoms():
+                atom.SetAtomMapNum(0)
+        return rdChemReactions.ReactionToSmiles(rxn, canonical=True)
