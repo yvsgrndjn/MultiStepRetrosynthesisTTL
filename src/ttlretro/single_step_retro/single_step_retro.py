@@ -18,7 +18,7 @@ import onmt.bin.translate as trsl
 from typing import List, Tuple
 
 from ttlretro.rxnmarkcenter import RXNMarkCenter
-
+from rxnmapper import BatchedMapper
 
 class SingleStepRetrosynthesis:
     '''
@@ -35,6 +35,7 @@ class SingleStepRetrosynthesis:
         USPTO_T1_path = '', 
         USPTO_T2_path = '',
         USPTO_T3_path = '',
+        USPTO_T3_FT_path = '', 
         tmp_file_path = 'tmp/',
         ):
         
@@ -42,6 +43,7 @@ class SingleStepRetrosynthesis:
         self.USPTO_T1_path = USPTO_T1_path
         self.USPTO_T2_path = USPTO_T2_path
         self.USPTO_T3_path = USPTO_T3_path
+        self.USPTO_T3_FT_path = USPTO_T3_FT_path
         
         #      Custom Model:
         self.Custom_Model = 'Custom_Model.pt'  # for round-trip accuracy testing
@@ -53,6 +55,7 @@ class SingleStepRetrosynthesis:
 
         self.list_substructures = list_substructures
         self.rxn_mark_center = RXNMarkCenter()
+        self.rxn_mapper_batch = BatchedMapper(batch_size=10, canonicalize=False)
 
     def write_logs(self, logs: str) -> None:
         
@@ -73,7 +76,7 @@ class SingleStepRetrosynthesis:
         assert smi == ''.join(tokens)
         return ' '.join(tokens)
 
-    def canonicalize_smiles(self, smiles: str) -> str:
+    def canonicalize_smiles(self, smiles: str, isomeric: bool = True) -> str:
         '''
         Molecule canonicalization that does not change the SMILES order of molecules in case of multiple molecules.
         Also neutralizes any charge of the molecules.
@@ -90,7 +93,7 @@ class SingleStepRetrosynthesis:
             molecule = self.neutralize_smi(molecule)
             mol = Chem.MolFromSmiles(molecule)
             if mol is not None:
-                returned.append(Chem.MolToSmiles(mol, isomericSmiles=True, canonical=True))
+                returned.append(Chem.MolToSmiles(mol, isomericSmiles=isomeric, canonical=True))
             else: 
                 any_error = True
         if not any_error:
@@ -257,12 +260,32 @@ class SingleStepRetrosynthesis:
     def Make_Forward_Prediction(
         self, 
         df_prediction_Forw, 
-        Fwd_USPTO_Reag_Pred=True, 
+        Fwd_USPTO_Reag_Pred=True,
+        Fwd_USPTO_Tag_React=False, 
         USPTO_Reag_Beam_Size=3, 
         log=False
         ):
 
         forw_df = []
+
+        #In case of Reactant tagging, both T3's need to be executed:
+        if Fwd_USPTO_Tag_React:
+            Fwd_USPTO_Reag_Pred = True 
+
+            df_prediction_Forw['Forward_Model'] = self.USPTO_T3_FT_path
+            if log: self.write_logs('Mapping, ' + str(len(df_prediction_Forw)) +  ' reactions...')
+            rxnstomap = [str(df_prediction_Forw.at[el, 'Retro']) + '>>' + str(df_prediction_Forw.at[el, 'Target']) for el in range(0, len(df_prediction_Forw))]
+            MappedReaction = list(self.rxn_mapper_batch.map_reactions(rxnstomap))
+            if log: self.write_logs('Finished mapping of ' + str(len(df_prediction_Forw)) +  ' reactions..., tagging begins:')
+            df_prediction_Forw['TaggedRxn'] = ''
+            df_prediction_Forw['Reagents'] = ''
+            for i in range(len(MappedReaction)):
+                if MappedReaction[i] == '>>':
+                    rxn_SMILES_in_2 = ''
+                else:
+                    rxn_SMILES_in_2 = self.rxn_mark_center.TagMappedReactionCenter(MappedReaction[i], alternative_marking= True, tag_reactants=True)
+                    
+                df_prediction_Forw.at[i, 'TaggedRxn'] = rxn_SMILES_in_2            
 
         # Set of predicted USPTO Reagents:
         if Fwd_USPTO_Reag_Pred:
@@ -272,10 +295,15 @@ class SingleStepRetrosynthesis:
             if log: self.write_logs('Predicting reagents for USPTO fwd Pred, {} predictions...'.format(len(df_prediction_Forw_sub)))
             reagent_set = self.get_reagent_prediction_USPTO(df_prediction_Forw_sub, beam_size_output=USPTO_Reag_Beam_Size)
             
-            for i in range(0, len(reagent_set)):
-                df_prediction_Forw_sub['Forward_Model'] = self.USPTO_T3_path
-                df_prediction_Forw_sub['Reagents'] = reagent_set[i]
-                forw_df.append(df_prediction_Forw_sub.copy())
+            if Fwd_USPTO_Tag_React:
+                for i in range(0, len(reagent_set)):
+                    df_prediction_Forw_sub['Reagents'] = reagent_set[i]
+                    forw_df.append(df_prediction_Forw_sub.copy())
+            else:    
+                for i in range(0, len(reagent_set)):
+                    df_prediction_Forw_sub['Forward_Model'] = self.USPTO_T3_path
+                    df_prediction_Forw_sub['Reagents'] = reagent_set[i]
+                    forw_df.append(df_prediction_Forw_sub.copy())
             if log: self.write_logs('USPTO Reagents set predicted')
 
         # Concatenate it all into DF:
@@ -291,18 +319,28 @@ class SingleStepRetrosynthesis:
             if  forw_df.at[element, 'Forward_Model'] == self.USPTO_T3_path:
                 forw_df.at[element, 'Forward_Model_Input'] = self.smi_tokenizer(forw_df.at[element, 'Retro']) + ' > ' + self.smi_tokenizer(forw_df.at[element, 'Reagents'])
 
-        # T3 USPTO Forward Prediction:
-        if Fwd_USPTO_Reag_Pred:
-            if log: self.write_logs('USPTO_T3 Forward prediction...')
-            predictions, probs = self.Execute_Prediction(list(forw_df[forw_df['Forward_Model'] == self.USPTO_T3_path]['Forward_Model_Input']), Model_path=self.USPTO_T3_path, beam_size=3)
-            
-            if len(forw_df.loc[forw_df['Forward_Model'] == self.USPTO_T3_path, 'Forward_Prediction']) == len(predictions[0]):
-                forw_df.loc[forw_df['Forward_Model'] == self.USPTO_T3_path, 'Forward_Prediction'] = predictions[0]
-                forw_df.loc[forw_df['Forward_Model'] == self.USPTO_T3_path, 'Prob_Forward_Prediction_1'] = probs[0]
-                forw_df.loc[forw_df['Forward_Model'] == self.USPTO_T3_path, 'Prob_Forward_Prediction_2'] = probs[1]
+        # T3 USPTO Forward prediction with tagged reactants:
+        if Fwd_USPTO_Tag_React:
+            if log: self.write_logs('USPTO_T3_FT Forward prediction...')
+            predictions, probs = self.Execute_Prediction(list(forw_df[forw_df['Forward_Model'] == self.USPTO_T3_FT_path]['Forward_Model_Input']), Model_path=self.USPTO_T3_path, beam_size=3)
+            if len(forw_df.loc[forw_df['Forward_Model'] == self.USPTO_T3_FT_path, 'Forward_Prediction']) == len(predictions[0]):
+                forw_df.loc[forw_df['Forward_Model'] == self.USPTO_T3_FT_path, 'Forward_Prediction'] = predictions[0]
+                forw_df.loc[forw_df['Forward_Model'] == self.USPTO_T3_FT_path, 'Prob_Forward_Prediction_1'] = probs[0]
+                forw_df.loc[forw_df['Forward_Model'] == self.USPTO_T3_FT_path, 'Prob_Forward_Prediction_2'] = probs[1]
             else:
-                if log: self.write_logs('Lenghts predictions mismatch: {}, vs {}'.format(len(forw_df.loc[forw_df['Forward_Model'] == self.USPTO_T3_path, 'Forward_Prediction']), len(predictions[0])))
+                if log: self.write_logs('Lenghts predictions mismatch: ' + str(len(forw_df.loc[forw_df['Forward_Model'] == self.USPTO_T3_FT_path, 'Forward_Prediction'])) + ', vs  ' + str(len(predictions[0])))
 
+        # T3 USPTO Forward Prediction:
+        elif Fwd_USPTO_Reag_Pred:
+                if log: self.write_logs('USPTO_T3 Forward prediction...')
+                predictions, probs = self.Execute_Prediction(list(forw_df[forw_df['Forward_Model'] == self.USPTO_T3_path]['Forward_Model_Input']), Model_path=self.USPTO_T3_path, beam_size=3)
+
+                if len(forw_df.loc[forw_df['Forward_Model'] == self.USPTO_T3_path, 'Forward_Prediction']) == len(predictions[0]):
+                    forw_df.loc[forw_df['Forward_Model'] == self.USPTO_T3_path, 'Forward_Prediction'] = predictions[0]
+                    forw_df.loc[forw_df['Forward_Model'] == self.USPTO_T3_path, 'Prob_Forward_Prediction_1'] = probs[0]
+                    forw_df.loc[forw_df['Forward_Model'] == self.USPTO_T3_path, 'Prob_Forward_Prediction_2'] = probs[1]
+                else:
+                    if log: self.write_logs('Lenghts predictions mismatch: {}, vs {}'.format(len(forw_df.loc[forw_df['Forward_Model'] == self.USPTO_T3_path, 'Forward_Prediction']), len(predictions[0])))
         if log: self.write_logs('All Forward predictions done, start canonicalization...')
 
         # Canonicalize_smiles:
@@ -452,6 +490,7 @@ class SingleStepRetrosynthesis:
         Substructure_Tagging = True, 
         Retro_USPTO = True, 
         Fwd_USPTO_Reag_Pred = True, 
+        Fwd_USPTO_Tag_React = False, 
         USPTO_Reag_Beam_Size = 3, 
         similarity_filter = False, 
         confidence_filter = False, 
@@ -511,6 +550,7 @@ class SingleStepRetrosynthesis:
         df_prediction_Forw_2 = self.Make_Forward_Prediction(
             df_prediction_Forw = df_prediction_Forw, 
             Fwd_USPTO_Reag_Pred = Fwd_USPTO_Reag_Pred, 
+            Fwd_USPTO_Tag_React = Fwd_USPTO_Tag_React, 
             USPTO_Reag_Beam_Size = USPTO_Reag_Beam_Size, 
             log = log
             )

@@ -29,6 +29,7 @@ class MultiStepGraphRetro:
         Substructure_Tagging = True, 
         Retro_USPTO = True, 
         Fwd_USPTO_Reag_Pred = True, 
+        Fwd_USPTO_Tag_React = False, 
         USPTO_Reag_Beam_Size = 3, 
         similarity_filter = False, 
         confidence_filter = False, 
@@ -47,8 +48,9 @@ class MultiStepGraphRetro:
         log = False, 
         USPTO_AutoTag_path = '',
         USPTO_T1_path = '', 
-        USPTO_T2_path = '',
-        USPTO_T3_path = '',
+        USPTO_T2_path = '', 
+        USPTO_T3_path = '', 
+        USPTO_T3_FT_path = '', 
         tmp_file_path = 'tmp/', 
         commercial_file_path = ''
         ):
@@ -65,6 +67,7 @@ class MultiStepGraphRetro:
         self.Substructure_Tagging = Substructure_Tagging
         self.Retro_USPTO = Retro_USPTO
         self.Fwd_USPTO_Reag_Pred = Fwd_USPTO_Reag_Pred
+        self.Fwd_USPTO_Tag_React = Fwd_USPTO_Tag_React
         self.USPTO_Reag_Beam_Size = USPTO_Reag_Beam_Size
         self.similarity_filter = similarity_filter
         self.confidence_filter = confidence_filter
@@ -86,6 +89,7 @@ class MultiStepGraphRetro:
         self.USPTO_T1_path = USPTO_T1_path
         self.USPTO_T2_path = USPTO_T2_path
         self.USPTO_T3_path = USPTO_T3_path
+        self.USPTO_T3_FT_path = USPTO_T3_FT_path
         
         self.tmp_file_path = tmp_file_path
 
@@ -112,6 +116,7 @@ class MultiStepGraphRetro:
             USPTO_T1_path = self.USPTO_T1_path, 
             USPTO_T2_path = self.USPTO_T2_path, 
             USPTO_T3_path = self.USPTO_T3_path, 
+            USPTO_T3_FT_path = self.USPTO_T3_FT_path, 
             tmp_file_path = self.tmp_file_path
         )
 
@@ -450,6 +455,7 @@ class MultiStepGraphRetro:
             Substructure_Tagging = self.Substructure_Tagging,
             Retro_USPTO = self.Retro_USPTO, 
             Fwd_USPTO_Reag_Pred = self.Fwd_USPTO_Reag_Pred, 
+            Fwd_USPTO_Tag_React = self.Fwd_USPTO_Tag_React, 
             USPTO_Reag_Beam_Size = self.USPTO_Reag_Beam_Size, 
             similarity_filter = self.similarity_filter,
             confidence_filter = self.confidence_filter,
@@ -537,6 +543,7 @@ class MultiStepGraphRetro:
                     Substructure_Tagging = self.Substructure_Tagging,
                     Retro_USPTO = self.Retro_USPTO, 
                     Fwd_USPTO_Reag_Pred = self.Fwd_USPTO_Reag_Pred, 
+                    Fwd_USPTO_Tag_React = self.Fwd_USPTO_Tag_React, 
                     USPTO_Reag_Beam_Size = self.USPTO_Reag_Beam_Size, 
                     similarity_filter = self.similarity_filter,
                     confidence_filter = self.confidence_filter,
