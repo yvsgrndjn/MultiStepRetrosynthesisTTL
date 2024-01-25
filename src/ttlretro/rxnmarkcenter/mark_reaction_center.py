@@ -323,25 +323,29 @@ class RXNMarkCenter:
         transformed_atoms = []
         
         if tag_reactants:
-            for index in self.ListMapNum(products[0]):
-                precursors_atom = self.GetAtomFromMapNum(reactants, index)
-                products_atom = self.GetAtomFromMapNum(products, index)
-    
-                if self.GetAtomEnvironment(precursors_atom) != self.GetAtomEnvironment(products_atom):
-                    transformed_atoms.append(products_atom.GetIdx()+1)
-    
-            # Clear atom mapping in Products: #modified <----------------
-            for molecule in products:
-                for atom in molecule.GetAtoms():
-                    atom.SetAtomMapNum(0)
-    
-            # Clear atom mapping in Reactants (if unchanged): #modified <----------------
-            for molecule in reactants:
-                for atom in molecule.GetAtoms():
-                    if not atom.GetAtomMapNum() in transformed_atoms:
+            try:
+                for index in self.ListMapNum(products[0]):
+                    precursors_atom = self.GetAtomFromMapNum(reactants, index)
+                    products_atom = self.GetAtomFromMapNum(products, index)
+
+                    if self.GetAtomEnvironment(precursors_atom) != self.GetAtomEnvironment(products_atom):
+                        transformed_atoms.append(products_atom.GetIdx()+1)
+
+                # Clear atom mapping in Products: #modified <----------------
+                for molecule in products:
+                    for atom in molecule.GetAtoms():
                         atom.SetAtomMapNum(0)
-                    else:
-                        atom.SetAtomMapNum(1)
+
+                # Clear atom mapping in Reactants (if unchanged): #modified <----------------
+                for molecule in reactants:
+                    for atom in molecule.GetAtoms():
+                        if not atom.GetAtomMapNum() in transformed_atoms:
+                            atom.SetAtomMapNum(0)
+                        else:
+                            atom.SetAtomMapNum(1)
+            except:
+                return ''
+                
         else:
             for index in self.ListMapNum(products[0]):
                 precursors_atom = self.GetAtomFromMapNum(reactants, index)
@@ -374,6 +378,105 @@ class RXNMarkCenter:
             return rdChemReactions.ReactionToSmiles(rxn, canonical=True)
         else:
             return self.mark_reaction_center_alt_all(rdChemReactions.ReactionToSmiles(rxn, canonical=True), tag_reactants)
+
+    def TagMappedReactionCenter_newtest(self, MappedReaction, alternative_marking=False, tag_reactants = False, keep_map_number = False):
+        
+        try:    
+            rxn = rdChemReactions.ReactionFromSmarts(MappedReaction, useSmiles=True)
+            rdChemReactions.SanitizeRxn(rxn)
+        except: return ''
+        
+        reactants = rxn.GetReactants()
+        products = rxn.GetProducts()
+        
+        if len(products) > 1 : return '' 
+        
+        for molecule in reactants:
+            try:    Chem.SanitizeMol(molecule)
+            except: i=0
+        for molecule in products:
+            try:    Chem.SanitizeMol(molecule)
+            except: i=0
+            
+        transformed_atoms = []
+        
+        if tag_reactants:
+            try:
+                for index in self.ListMapNum(products[0]):
+                    precursors_atom = self.GetAtomFromMapNum(reactants, index)
+                    products_atom = self.GetAtomFromMapNum(products, index)
+
+                    if self.GetAtomEnvironment(precursors_atom) != self.GetAtomEnvironment(products_atom):
+                        transformed_atoms.append(products_atom.GetIdx()+1)
+
+                # Clear atom mapping in Products: #modified <----------------
+                for molecule in products:
+                    for atom in molecule.GetAtoms():
+                        atom.SetAtomMapNum(0)
+                if keep_map_number:
+                    # Clear atom mapping in Reactants (if unchanged): #modified <----------------
+                    for molecule in reactants:
+                        for atom in molecule.GetAtoms():
+                            if not atom.GetAtomMapNum() in transformed_atoms:
+                                atom.SetAtomMapNum(0)
+                            else:
+                                continue
+                else:
+                    # Clear atom mapping in Reactants (if unchanged): #modified <----------------
+                    for molecule in reactants:
+                        for atom in molecule.GetAtoms():
+                            if not atom.GetAtomMapNum() in transformed_atoms:
+                                atom.SetAtomMapNum(0)
+                            else:
+                                atom.SetAtomMapNum(1)
+            except:
+                return ''
+                
+        else:
+            for index in self.ListMapNum(products[0]):
+                precursors_atom = self.GetAtomFromMapNum(reactants, index)
+                products_atom = self.GetAtomFromMapNum(products, index)
+            
+                if self.GetAtomEnvironment(precursors_atom) != self.GetAtomEnvironment(products_atom):
+                    transformed_atoms.append(products_atom.GetIdx())
+            if keep_map_number:
+                # Clear atom mapping in Precursors:
+                for molecule in reactants:
+                    for atom in molecule.GetAtoms():
+                        atom.SetAtomMapNum(0)
+                        
+                # Clear atom mapping in Product (if unchanged):
+                for molecule in products:
+                    for atom in molecule.GetAtoms():
+                        if not atom.GetIdx() in transformed_atoms:
+                            atom.SetAtomMapNum(0)
+                        else:
+                            continue
+            else:
+                            # Clear atom mapping in Precursors:
+                for molecule in reactants:
+                    for atom in molecule.GetAtoms():
+                        atom.SetAtomMapNum(0)
+                        
+                # Clear atom mapping in Product (if unchanged):
+                for molecule in products:
+                    for atom in molecule.GetAtoms():
+                        if not atom.GetIdx() in transformed_atoms:
+                            atom.SetAtomMapNum(0)
+                        else:
+                            atom.SetAtomMapNum(1)
+        
+        # Convert Mol to Smarts:
+        try:
+            rdChemReactions.SanitizeRxn(rxn)
+        except:
+            print(MappedReaction)
+            return ''
+
+        if not alternative_marking:
+            return rdChemReactions.ReactionToSmiles(rxn, canonical=True)
+        else:
+            return self.mark_reaction_center_alt_all(rdChemReactions.ReactionToSmiles(rxn, canonical=True), tag_reactants)     
         
     def Mark_Random_Atoms(self, mol_SMILES, mark_count=2, neighbors=True, tokenized=False):
         '''
