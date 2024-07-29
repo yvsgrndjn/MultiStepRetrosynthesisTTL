@@ -21,7 +21,7 @@ dependencies = [
     "rdkit==2022.3.3", 
  
     "scscore@git+https://github.com/DavKre/scscore#egg=8cc8b9fbc8150d608d9632b28c1c7c3148433115", 
-    "opennmt-py@git+https://github.com/reymond-group/OpenNMT-py#71fb9f70e887589941be291b762a8bdad8aa9437",
+    "opennmt-py@git+https://github.com/reymond-group/OpenNMT-py#a006d8ec25cd138fce466d9d3ab24bd1c915a750",
     "rxnmapper@git+https://github.com/yvsgrndjn/rxnmapper#3ae9f877fa3742b6c8558848c429180bd7839505",  
     ]
 
