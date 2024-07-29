@@ -22,7 +22,7 @@ dependencies = [
  
     "scscore@git+https://github.com/DavKre/scscore#egg=8cc8b9fbc8150d608d9632b28c1c7c3148433115", 
     "opennmt-py@git+https://github.com/reymond-group/OpenNMT-py#71fb9f70e887589941be291b762a8bdad8aa9437",
-    "rxnmapper@git+https://github.com/yvsgrndjn/rxnmapper#3ae9f877fa3742b6c8558848c429180bd7839505",  
+    "rxnmapper@git+https://github.com/yvsgrndjn/rxnmapper#7a55dd6d2080d4882f8cb55353bf5c5b24bbaeeb,  
     ]
 
 [tool.hatch.version]
